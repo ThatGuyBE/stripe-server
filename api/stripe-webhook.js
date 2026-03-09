@@ -91,7 +91,6 @@ async function handler(req, res) {
         currency: String(session.currency || 'eur').toUpperCase(),
         email: customerDetails.email || undefined,
         financialStatus: 'PAID',
-        fulfillmentStatus: 'UNFULFILLED',
         lineItems: shopifyLineItems,
         shippingAddress: {
           firstName: extractFirstName(
@@ -140,7 +139,6 @@ async function handler(req, res) {
           `stripe-session-${session.id}`
         ]
       };
-
       const created = await shopifyGraphQL(
         `
           mutation orderCreate($order: OrderCreateOrderInput!, $options: OrderCreateOptionsInput) {
