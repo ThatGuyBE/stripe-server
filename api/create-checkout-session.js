@@ -23,54 +23,70 @@ module.exports = async (req, res) => {
             return res.status(400).json({ error: 'Geen geldige items ontvangen.' });
         }
 
-        const line_items = items.map((item) => ({
-            quantity: item.quantity,
-            price_data: {
-                currency: 'eur',
-                product_data: {
-                    name: item.title,
+        const line_items = items.map((item) => {
+            const variantName = item.variant || item.variantName || '';
+            const productName = variantName
+                ? `${item.title} - ${variantName}`
+                : item.title;
+
+            return {
+                quantity: item.quantity,
+                price_data: {
+                    currency: 'eur',
+                    unit_amount: item.price, // prijs in centen
+                    product_data: {
+                        name: productName,
+                        metadata: {
+                            product_id: String(item.id || ''),
+                            title: String(item.title || ''),
+                            variant: String(variantName || ''),
+                            sku: String(item.sku || ''),
+                        },
+                    },
                 },
-                unit_amount: item.price,
-            },
-        }));
+            };
+        });
 
         const session = await stripe.checkout.sessions.create({
             mode: 'payment',
             payment_method_types: ['card', 'bancontact', 'ideal'],
             line_items,
 
-            // E-mail vooraf invullen indien beschikbaar
             customer_email: email || undefined,
 
-            // Verplicht factuuradres tonen
+            // naam tonen / laten invullen
+            name_collection: {
+                individual: {
+                    enabled: true,
+                },
+            },
+
+            // factuuradres verplicht
             billing_address_collection: 'required',
 
-            // Telefoonnummer vragen
+            // telefoonnummer tonen
             phone_number_collection: {
                 enabled: true,
             },
 
-            // Verzendadres vragen en alle landen toestaan
+            // verzendadres vragen, alleen NL en BE
             shipping_address_collection: {
-                allowed_countries: [
-                    'AC','AD','AE','AF','AG','AI','AL','AM','AO','AQ','AR','AT','AU','AW',
-                    'AX','AZ','BA','BB','BD','BE','BF','BG','BH','BJ','BL','BM','BN','BO',
-                    'BQ','BR','BS','BT','BV','BW','BY','BZ','CA','CD','CF','CG','CH','CI',
-                    'CK','CL','CM','CN','CO','CR','CV','CW','CY','CZ','DE','DJ','DK','DM',
-                    'DO','DZ','EC','EE','EG','EH','ER','ES','ET','FI','FJ','FK','FO','FR',
-                    'GA','GB','GD','GE','GF','GG','GH','GI','GL','GM','GN','GP','GQ','GR',
-                    'GS','GT','GW','GY','HK','HN','HR','HT','HU','ID','IE','IL','IM','IN',
-                    'IO','IQ','IS','IT','JE','JM','JO','JP','KE','KG','KH','KI','KM','KN',
-                    'KR','KW','KY','KZ','LA','LB','LC','LI','LK','LR','LS','LT','LU','LV',
-                    'MA','MC','MD','ME','MF','MG','MK','ML','MN','MO','MQ','MR','MS','MT',
-                    'MU','MV','MW','MX','MY','MZ','NA','NC','NE','NG','NI','NL','NO','NP',
-                    'NR','NU','NZ','OM','PA','PE','PF','PG','PH','PK','PL','PM','PN','PR',
-                    'PS','PT','PY','QA','RE','RO','RS','RU','RW','SA','SB','SC','SE','SG',
-                    'SH','SI','SJ','SK','SL','SM','SN','SO','SR','ST','SV','SX','SZ','TA',
-                    'TC','TD','TF','TG','TH','TJ','TK','TL','TM','TN','TO','TR','TT','TV',
-                    'TW','TZ','UA','UG','US','UY','UZ','VA','VC','VE','VG','VN','VU','WF',
-                    'WS','XK','YE','YT','ZA','ZM','ZW'
-                ],
+                allowed_countries: ['NL', 'BE'],
+            },
+
+            // handig voor je eigen ordersysteem
+            metadata: {
+                source: 'custom_checkout',
+                order_items: JSON.stringify(
+                    items.map((item) => ({
+                        id: item.id || '',
+                        title: item.title || '',
+                        variant: item.variant || item.variantName || '',
+                        sku: item.sku || '',
+                        quantity: item.quantity || 1,
+                        price: item.price || 0,
+                    }))
+                ),
             },
 
             success_url:
@@ -79,7 +95,6 @@ module.exports = async (req, res) => {
         });
 
         return res.status(200).json({ url: session.url });
-
     } catch (error) {
         console.error('Stripe error:', error);
         return res.status(500).json({ error: error.message });
