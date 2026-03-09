@@ -31,12 +31,16 @@ module.exports = async (req, res) => {
                 ? item.details.map((d) => String(d).trim()).filter(Boolean)
                 : [];
         
+            // Titel altijd tonen
             let productName = title;
-            let description = "";
         
+            // kleur toevoegen indien aanwezig
             if (color) {
                 productName = `${title} - ${color}`;
             }
+        
+            // description alleen als er extra details zijn
+            let description = undefined;
         
             if (details.length > 0) {
                 description = details.join('\n');
@@ -49,7 +53,7 @@ module.exports = async (req, res) => {
                     unit_amount: Number(item.price || 0),
                     product_data: {
                         name: productName,
-                        description: description,
+                        ...(description && { description }),
                         metadata: {
                             product_id: String(item.id || ''),
                             variant_id: String(item.variant_id || ''),
@@ -106,4 +110,5 @@ module.exports = async (req, res) => {
         return res.status(500).json({ error: error.message });
     }
 };
+
 
