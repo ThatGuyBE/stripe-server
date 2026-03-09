@@ -22,48 +22,43 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Geen geldige items ontvangen.' });
     }
 
-    const line_items = items.map((item) => ({
-      quantity: item.quantity,
-      price_data: {
-        currency: 'eur',
-        unit_amount: item.price, // in centen
-        product_data: {
-          name: item.title,
+    const line_items = items.map((item) => {
+      if (!item.title || !item.price || !item.quantity) {
+        throw new Error('Elk item moet title, price en quantity hebben.');
+      }
 
-          // Foto tonen in Stripe Checkout
-          images: item.image ? [item.image] : [],
-
-          // Extra info bewaren voor later
-          metadata: {
-            product_id: String(item.id || ''),
-            product_url: String(item.url || ''),
-            sku: String(item.sku || '')
+      return {
+        quantity: item.quantity,
+        price_data: {
+          currency: 'eur',
+          unit_amount: item.price,
+          product_data: {
+            name: item.title,
+            images: item.image ? [item.image] : [],
+            metadata: {
+              product_id: item.id ? String(item.id) : '',
+              product_url: item.url ? String(item.url) : '',
+              sku: item.sku ? String(item.sku) : ''
+            }
           }
         }
-      }
-    }));
+      };
+    });
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card', 'bancontact', 'ideal'],
       line_items,
-
-      // Laat Stripe verzendadres vragen
       shipping_address_collection: {
         allowed_countries: ['BE', 'NL']
       },
-
-      // Laat telefoonnummer vragen
       phone_number_collection: {
         enabled: true
       },
-
-      // Optioneel: klantgegevens bewaren
       customer_creation: 'always',
-
       success_url:
         'https://maisondanvers.nl/pages/payment-success?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'https://maisondanvers.nl/cart',
+      cancel_url: 'https://maisondanvers.nl/cart'
     });
 
     return res.status(200).json({ url: session.url });
