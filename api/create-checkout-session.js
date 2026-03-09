@@ -23,23 +23,25 @@ module.exports = async (req, res) => {
             return res.status(400).json({ error: 'Geen geldige items ontvangen.' });
         }
 
-        const line_items = items.map((item) => {
+       const line_items = items.map((item) => {
             const title = String(item.title || 'Product').trim();
             const color = String(item.color || '').trim();
+        
             const details = Array.isArray(item.details)
                 ? item.details.map((d) => String(d).trim()).filter(Boolean)
                 : [];
-
+        
             let productName = title;
-
+            let description = "";
+        
             if (color) {
                 productName = `${title} - ${color}`;
             }
-
+        
             if (details.length > 0) {
-                productName += `\n${details.join('\n')}`;
+                description = details.join('\n');
             }
-
+        
             return {
                 quantity: Number(item.quantity || 1),
                 price_data: {
@@ -47,6 +49,7 @@ module.exports = async (req, res) => {
                     unit_amount: Number(item.price || 0),
                     product_data: {
                         name: productName,
+                        description: description,
                         metadata: {
                             product_id: String(item.id || ''),
                             variant_id: String(item.variant_id || ''),
@@ -59,7 +62,6 @@ module.exports = async (req, res) => {
                 }
             };
         });
-
         const session = await stripe.checkout.sessions.create({
             mode: 'payment',
             payment_method_types: ['card', 'bancontact', 'ideal'],
@@ -104,3 +106,4 @@ module.exports = async (req, res) => {
         return res.status(500).json({ error: error.message });
     }
 };
+
