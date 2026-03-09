@@ -27,18 +27,39 @@ module.exports = async (req, res) => {
         throw new Error('Elk item moet title, price en quantity hebben.');
       }
 
+      // Producttitel + variantnaam samen tonen in Stripe Checkout
+      const productName = item.variantTitle
+        ? `${item.title} - ${item.variantTitle}`
+        : item.title;
+
+      // Optionele beschrijving onder de titel
+      const productDescription = item.optionSummary
+        ? String(item.optionSummary)
+        : '';
+
+      // Zorg dat de image-url absoluut is
+      let imageUrl = '';
+      if (item.image) {
+        imageUrl = String(item.image).startsWith('//')
+          ? `https:${item.image}`
+          : String(item.image);
+      }
+
       return {
-        quantity: item.quantity,
+        quantity: Number(item.quantity),
         price_data: {
           currency: 'eur',
-          unit_amount: item.price,
+          unit_amount: Number(item.price), // prijs in centen
           product_data: {
-            name: item.title,
-            images: item.image ? [item.image] : [],
+            name: productName,
+            description: productDescription,
+            images: imageUrl ? [imageUrl] : [],
             metadata: {
               product_id: item.id ? String(item.id) : '',
+              variant_id: item.variantId ? String(item.variantId) : '',
               product_url: item.url ? String(item.url) : '',
-              sku: item.sku ? String(item.sku) : ''
+              sku: item.sku ? String(item.sku) : '',
+              variant_title: item.variantTitle ? String(item.variantTitle) : ''
             }
           }
         }
