@@ -59,24 +59,64 @@ async function handler(req, res) {
             )
           : '';
 
+        const quantity = Math.max(1, Number(item.quantity || 1));
+        const unitAmount = Number((item.amount_total || 0) / quantity / 100).toFixed(2);
+        const currencyCode = String(item.currency || session.currency || 'eur').toUpperCase();
+
+        const properties = [];
+
+        if (metadata.color) {
+          properties.push({
+            name: 'Color',
+            value: String(metadata.color)
+          });
+        }
+
+        if (metadata.details) {
+          properties.push({
+            name: 'Details',
+            value: String(metadata.details)
+          });
+        }
+
+        if (metadata.product_id) {
+          properties.push({
+            name: 'Product ID',
+            value: String(metadata.product_id)
+          });
+        }
+
+        if (metadata.sku) {
+          properties.push({
+            name: 'SKU',
+            value: String(metadata.sku)
+          });
+        }
+
         if (variantId) {
           return {
             variantId,
-            quantity: Math.max(1, Number(item.quantity || 1))
+            quantity,
+            priceSet: {
+              shopMoney: {
+                amount: unitAmount,
+                currencyCode
+              }
+            },
+            ...(properties.length ? { properties } : {})
           };
         }
 
         return {
           title,
-          quantity: Math.max(1, Number(item.quantity || 1)),
+          quantity,
           priceSet: {
             shopMoney: {
-              amount: Number(
-                (item.amount_total || 0) / Math.max(Number(item.quantity || 1), 1) / 100
-              ).toFixed(2),
-              currencyCode: String(item.currency || session.currency || 'eur').toUpperCase()
+              amount: unitAmount,
+              currencyCode
             }
-          }
+          },
+          ...(properties.length ? { properties } : {})
         };
       });
 
