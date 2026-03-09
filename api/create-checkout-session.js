@@ -24,26 +24,44 @@ module.exports = async (req, res) => {
         }
 
         const line_items = items.map((item) => {
-            const variantName = item.variant || item.variantName || '';
-            const productName = variantName
-                ? `${item.title} - ${variantName}`
-                : item.title;
+            const title = String(item.title || 'Product').trim();
+            const color = String(item.color || '').trim();
+            const details = Array.isArray(item.details)
+                ? item.details.map((d) => String(d).trim()).filter(Boolean)
+                : [];
+
+            let productName = title;
+
+            if (color) {
+                productName = `${title} - ${color}`;
+            }
+
+            if (details.length > 0) {
+                productName += `\n${details.join('\n')}`;
+            }
+
+            const imageUrl = String(item.image || '').trim();
 
             return {
-                quantity: item.quantity,
+                quantity: Number(item.quantity || 1),
                 price_data: {
                     currency: 'eur',
-                    unit_amount: item.price, // prijs in centen
+                    unit_amount: Number(item.price || 0),
                     product_data: {
                         name: productName,
+                        ...(imageUrl ? { images: [imageUrl] } : {}),
                         metadata: {
                             product_id: String(item.id || ''),
-                            title: String(item.title || ''),
-                            variant: String(variantName || ''),
-                            sku: String(item.sku || ''),
-                        },
-                    },
-                },
+                            variant_id: String(item.variant_id || ''),
+                            title,
+                            color,
+                            variant: String(item.variant || ''),
+                            details: details.join(' | '),
+                            image: imageUrl,
+                            sku: String(item.sku || '')
+                        }
+                    }
+                }
             };
         });
 
@@ -54,34 +72,27 @@ module.exports = async (req, res) => {
 
             customer_email: email || undefined,
 
-            // naam tonen / laten invullen
-            name_collection: {
-                individual: {
-                    enabled: true,
-                },
-            },
-
-            // factuuradres verplicht
             billing_address_collection: 'required',
 
-            // telefoonnummer tonen
             phone_number_collection: {
                 enabled: true,
             },
 
-            // verzendadres vragen, alleen NL en BE
             shipping_address_collection: {
                 allowed_countries: ['NL', 'BE'],
             },
 
-            // handig voor je eigen ordersysteem
             metadata: {
                 source: 'custom_checkout',
                 order_items: JSON.stringify(
                     items.map((item) => ({
                         id: item.id || '',
+                        variant_id: item.variant_id || '',
                         title: item.title || '',
-                        variant: item.variant || item.variantName || '',
+                        color: item.color || '',
+                        details: Array.isArray(item.details) ? item.details : [],
+                        variant: item.variant || '',
+                        image: item.image || '',
                         sku: item.sku || '',
                         quantity: item.quantity || 1,
                         price: item.price || 0,
