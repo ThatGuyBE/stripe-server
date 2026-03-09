@@ -40,8 +40,6 @@ module.exports = async (req, res) => {
                 productName += `\n${details.join('\n')}`;
             }
 
-            const imageUrl = String(item.image || '').trim();
-
             return {
                 quantity: Number(item.quantity || 1),
                 price_data: {
@@ -49,15 +47,12 @@ module.exports = async (req, res) => {
                     unit_amount: Number(item.price || 0),
                     product_data: {
                         name: productName,
-                        ...(imageUrl ? { images: [imageUrl] } : {}),
                         metadata: {
                             product_id: String(item.id || ''),
                             variant_id: String(item.variant_id || ''),
                             title,
                             color,
-                            variant: String(item.variant || ''),
                             details: details.join(' | '),
-                            image: imageUrl,
                             sku: String(item.sku || '')
                         }
                     }
@@ -91,8 +86,6 @@ module.exports = async (req, res) => {
                         title: item.title || '',
                         color: item.color || '',
                         details: Array.isArray(item.details) ? item.details : [],
-                        variant: item.variant || '',
-                        image: item.image || '',
                         sku: item.sku || '',
                         quantity: item.quantity || 1,
                         price: item.price || 0,
