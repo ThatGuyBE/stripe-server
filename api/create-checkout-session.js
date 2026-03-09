@@ -1,99 +1,39 @@
-const Stripe = require('stripe');
-
-module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const { items } = req.body;
-
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'Geen geldige items ontvangen.' });
-    }
-
-    const line_items = items.map((item) => {
-
-      if (!item.title || !item.price || !item.quantity) {
-        throw new Error('Elk item moet title, price en quantity hebben.');
-      }
-
-      // Titel + variantnaam combineren
-      const productName = item.variantTitle
-        ? `${item.title} - ${item.variantTitle}`
-        : item.title;
-
-      return {
-        quantity: Number(item.quantity),
-
-        price_data: {
-          currency: 'eur',
-          unit_amount: Number(item.price),
-
-          product_data: {
-            name: productName,
-
-            description: item.optionSummary
-              ? String(item.optionSummary)
-              : '',
-
-            metadata: {
-              product_id: item.id ? String(item.id) : '',
-              variant_id: item.variantId ? String(item.variantId) : '',
-              product_url: item.url ? String(item.url) : '',
-              sku: item.sku ? String(item.sku) : '',
-              variant_title: item.variantTitle
-                ? String(item.variantTitle)
-                : ''
-            }
-          }
-        }
+<script>
+  async function startStripeCheckout() {
+    try {
+      const item = {
+        id: "123",
+        variantId: "456",
+        title: "Test product",
+        variantTitle: "Default Title",
+        optionSummary: "Test variant",
+        price: 2995,
+        quantity: 1,
+        url: window.location.href,
+        sku: "TEST-001"
       };
-    });
 
-    const session = await stripe.checkout.sessions.create({
+      const response = await fetch('https://stripe-serversdfq-6wj32huk1-thatguybes-projects.vercel.app/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ items: [item] })
+      });
 
-      mode: 'payment',
+      const data = await response.json();
 
-      payment_method_types: [
-        'card',
-        'bancontact',
-        'ideal'
-      ],
+      console.log('STATUS:', response.status);
+      console.log('RESPONSE:', data);
 
-      line_items,
-
-      shipping_address_collection: {
-        allowed_countries: ['BE', 'NL']
-      },
-
-      phone_number_collection: {
-        enabled: true
-      },
-
-      customer_creation: 'always',
-
-      success_url:
-        'https://maisondanvers.nl/pages/payment-success?session_id={CHECKOUT_SESSION_ID}',
-
-      cancel_url:
-        'https://maisondanvers.nl/cart'
-    });
-
-    return res.status(200).json({ url: session.url });
-
-  } catch (error) {
-    console.error('Stripe error:', error);
-    return res.status(500).json({ error: error.message });
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert('Stripe checkout kon niet worden gestart: ' + (data.error || 'onbekende fout'));
+      }
+    } catch (error) {
+      console.error('Checkout fout:', error);
+      alert('Stripe checkout kon niet worden gestart: ' + error.message);
+    }
   }
-};
+</script>
