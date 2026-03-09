@@ -23,43 +23,38 @@ module.exports = async (req, res) => {
     }
 
     const line_items = items.map((item) => {
+
       if (!item.title || !item.price || !item.quantity) {
         throw new Error('Elk item moet title, price en quantity hebben.');
       }
 
-      // Producttitel + variantnaam samen tonen in Stripe Checkout
+      // Titel + variantnaam combineren
       const productName = item.variantTitle
         ? `${item.title} - ${item.variantTitle}`
         : item.title;
 
-      // Optionele beschrijving onder de titel
-      const productDescription = item.optionSummary
-        ? String(item.optionSummary)
-        : '';
-
-      // Zorg dat de image-url absoluut is
-      let imageUrl = '';
-      if (item.image) {
-        imageUrl = String(item.image).startsWith('//')
-          ? `https:${item.image}`
-          : String(item.image);
-      }
-
       return {
         quantity: Number(item.quantity),
+
         price_data: {
           currency: 'eur',
-          unit_amount: Number(item.price), // prijs in centen
+          unit_amount: Number(item.price),
+
           product_data: {
             name: productName,
-            description: productDescription,
-            images: imageUrl ? [imageUrl] : [],
+
+            description: item.optionSummary
+              ? String(item.optionSummary)
+              : '',
+
             metadata: {
               product_id: item.id ? String(item.id) : '',
               variant_id: item.variantId ? String(item.variantId) : '',
               product_url: item.url ? String(item.url) : '',
               sku: item.sku ? String(item.sku) : '',
-              variant_title: item.variantTitle ? String(item.variantTitle) : ''
+              variant_title: item.variantTitle
+                ? String(item.variantTitle)
+                : ''
             }
           }
         }
@@ -67,22 +62,36 @@ module.exports = async (req, res) => {
     });
 
     const session = await stripe.checkout.sessions.create({
+
       mode: 'payment',
-      payment_method_types: ['card', 'bancontact', 'ideal'],
+
+      payment_method_types: [
+        'card',
+        'bancontact',
+        'ideal'
+      ],
+
       line_items,
+
       shipping_address_collection: {
         allowed_countries: ['BE', 'NL']
       },
+
       phone_number_collection: {
         enabled: true
       },
+
       customer_creation: 'always',
+
       success_url:
         'https://maisondanvers.nl/pages/payment-success?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'https://maisondanvers.nl/cart'
+
+      cancel_url:
+        'https://maisondanvers.nl/cart'
     });
 
     return res.status(200).json({ url: session.url });
+
   } catch (error) {
     console.error('Stripe error:', error);
     return res.status(500).json({ error: error.message });
