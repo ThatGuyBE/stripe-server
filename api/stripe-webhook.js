@@ -134,10 +134,9 @@ async function handler(req, res) {
             }
           }
         ],
-        tags: [
-          'stripe-checkout',
-          `stripe-session-${session.id}`
-        ]
+        sourceIdentifier: session.id,
+        note: `Stripe session: ${session.id}`,
+        tags: ['stripe', 'external-checkout']
       };
       const created = await shopifyGraphQL(
         `
