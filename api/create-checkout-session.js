@@ -27,6 +27,12 @@ module.exports = async (req, res) => {
         throw new Error('Elk item moet title, price en quantity hebben.');
       }
 
+
+
+
+
+
+
       return {
         quantity: item.quantity,
         price_data: {
@@ -49,21 +55,23 @@ module.exports = async (req, res) => {
       mode: 'payment',
       payment_method_types: ['card', 'bancontact', 'ideal'],
       line_items,
+
+
       shipping_address_collection: {
         allowed_countries: ['BE', 'NL']
       },
+
+
       phone_number_collection: {
         enabled: true
       },
+
+
       customer_creation: 'always',
+
       success_url:
         'https://maisondanvers.nl/pages/payment-success?session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://maisondanvers.nl/cart'
     });
 
     return res.status(200).json({ url: session.url });
-  } catch (error) {
-    console.error('Stripe error:', error);
-    return res.status(500).json({ error: error.message });
-  }
-};
