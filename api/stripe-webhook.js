@@ -33,19 +33,13 @@ async function handler(req, res) {
 
       console.log('Checkout session completed:', session.id);
 
-      // Idempotency light: check of er al een order met deze Stripe session tag bestaat
-      const existingOrder = await findShopifyOrderByStripeSession(session.id);
-      if (existingOrder) {
-        console.log('Shopify order bestaat al voor session:', session.id);
-        return res.status(200).json({ received: true, skipped: 'already_processed' });
-      }
-
       const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
         limit: 100,
         expand: ['data.price.product']
       });
 
       const shipping = session.shipping_details?.address || {};
+      const billing = session.customer_details?.address || {};
       const customerDetails = session.customer_details || {};
 
       const shopifyLineItems = lineItems.data.map((item) => {
@@ -68,14 +62,13 @@ async function handler(req, res) {
         if (variantId) {
           return {
             variantId,
-            quantity: Number(item.quantity || 1)
+            quantity: Math.max(1, Number(item.quantity || 1))
           };
         }
 
-        // fallback custom line item
         return {
           title,
-          quantity: Number(item.quantity || 1),
+          quantity: Math.max(1, Number(item.quantity || 1)),
           priceSet: {
             shopMoney: {
               amount: Number(
@@ -91,6 +84,8 @@ async function handler(req, res) {
         currency: String(session.currency || 'eur').toUpperCase(),
         email: customerDetails.email || undefined,
         financialStatus: 'PAID',
+        sourceIdentifier: session.id,
+        note: `Stripe session: ${session.id}`,
         lineItems: shopifyLineItems,
         shippingAddress: {
           firstName: extractFirstName(
@@ -114,12 +109,12 @@ async function handler(req, res) {
           lastName: extractLastName(
             customerDetails.name || session.shipping_details?.name || ''
           ),
-          address1: customerDetails.address?.line1 || shipping.line1 || '',
-          address2: customerDetails.address?.line2 || shipping.line2 || '',
-          city: customerDetails.address?.city || shipping.city || '',
-          provinceCode: customerDetails.address?.state || shipping.state || '',
-          zip: customerDetails.address?.postal_code || shipping.postal_code || '',
-          countryCode: customerDetails.address?.country || shipping.country || '',
+          address1: billing.line1 || shipping.line1 || '',
+          address2: billing.line2 || shipping.line2 || '',
+          city: billing.city || shipping.city || '',
+          provinceCode: billing.state || shipping.state || '',
+          zip: billing.postal_code || shipping.postal_code || '',
+          countryCode: billing.country || shipping.country || '',
           phone: customerDetails.phone || ''
         },
         transactions: [
@@ -134,10 +129,9 @@ async function handler(req, res) {
             }
           }
         ],
-        sourceIdentifier: session.id,
-        note: `Stripe session: ${session.id}`,
         tags: ['stripe', 'external-checkout']
       };
+
       const created = await shopifyGraphQL(
         `
           mutation orderCreate($order: OrderCreateOrderInput!, $options: OrderCreateOptionsInput) {
@@ -232,31 +226,6 @@ async function shopifyGraphQL(query, variables) {
   }
 
   return json;
-}
-
-async function findShopifyOrderByStripeSession(sessionId) {
-  const result = await shopifyGraphQL(
-    `
-      query findOrder($query: String!) {
-        orders(first: 1, query: $query, sortKey: CREATED_AT, reverse: true) {
-          edges {
-            node {
-              id
-              name
-            }
-          }
-        }
-      }
-    `,
-    {
-      query: `reference_location_id:${sessionId}`
-    }
-  );
-
-  return result?.data?.orders?.edges?.[0]?.node || null;
-}
-
-  return result?.data?.orders?.edges?.[0]?.node || null;
 }
 
 function extractFirstName(fullName) {
