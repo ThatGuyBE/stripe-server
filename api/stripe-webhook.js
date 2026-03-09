@@ -26,41 +26,7 @@ async function handler(req, res) {
   try {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-
-      const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
-        limit: 100,
-        expand: ['data.price.product']
-      });
-
-      const order = {
-        stripe_session_id: session.id,
-        payment_status: session.payment_status,
-        customer_email: session.customer_details?.email || '',
-        customer_name: session.customer_details?.name || '',
-        customer_phone: session.customer_details?.phone || '',
-        shipping_name: session.shipping_details?.name || '',
-        shipping_address: session.shipping_details?.address || null,
-        items: lineItems.data.map((item) => {
-          const product = item.price?.product;
-          const expandedProduct =
-            product && typeof product !== 'string' ? product : null;
-
-          return {
-            description: item.description || '',
-            quantity: item.quantity || 0,
-            amount_total: item.amount_total || 0,
-            currency: item.currency || 'eur',
-            image: expandedProduct?.images?.[0] || '',
-            product_id: expandedProduct?.metadata?.product_id || '',
-            product_url: expandedProduct?.metadata?.product_url || '',
-            sku: expandedProduct?.metadata?.sku || '',
-            variant_id: expandedProduct?.metadata?.variant_id || ''
-          };
-        })
-      };
-
-      console.log('=== NIEUWE BESTELLING ===');
-      console.log(JSON.stringify(order, null, 2));
+      console.log('Checkout session completed:', session.id);
     }
 
     return res.status(200).json({ received: true });
@@ -70,20 +36,20 @@ async function handler(req, res) {
   }
 }
 
-handler.config = {
+module.exports = handler;
+
+module.exports.config = {
   api: {
     bodyParser: false,
   },
 };
-
-module.exports = handler;
 
 function getRawBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
 
     req.on('data', (chunk) => {
-      chunks.push(chunk);
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     });
 
     req.on('end', () => {
