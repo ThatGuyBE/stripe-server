@@ -249,9 +249,12 @@ async function findShopifyOrderByStripeSession(sessionId) {
       }
     `,
     {
-      query: `tag:stripe-session-${sessionId}`
+      query: `reference_location_id:${sessionId}`
     }
   );
+
+  return result?.data?.orders?.edges?.[0]?.node || null;
+}
 
   return result?.data?.orders?.edges?.[0]?.node || null;
 }
