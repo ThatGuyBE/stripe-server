@@ -1,6 +1,6 @@
 const Stripe = require('stripe');
 
-module.exports = async (req, res) => {
+async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).send('Method Not Allowed');
   }
@@ -53,7 +53,8 @@ module.exports = async (req, res) => {
             image: expandedProduct?.images?.[0] || '',
             product_id: expandedProduct?.metadata?.product_id || '',
             product_url: expandedProduct?.metadata?.product_url || '',
-            sku: expandedProduct?.metadata?.sku || ''
+            sku: expandedProduct?.metadata?.sku || '',
+            variant_id: expandedProduct?.metadata?.variant_id || ''
           };
         })
       };
@@ -67,18 +68,26 @@ module.exports = async (req, res) => {
     console.error('Webhook verwerking mislukt:', err.message);
     return res.status(500).json({ error: 'Webhook verwerking mislukt.' });
   }
+}
+
+handler.config = {
+  api: {
+    bodyParser: false,
+  },
 };
+
+module.exports = handler;
 
 function getRawBody(req) {
   return new Promise((resolve, reject) => {
-    let data = '';
+    const chunks = [];
 
     req.on('data', (chunk) => {
-      data += chunk;
+      chunks.push(chunk);
     });
 
     req.on('end', () => {
-      resolve(data);
+      resolve(Buffer.concat(chunks));
     });
 
     req.on('error', (err) => {
